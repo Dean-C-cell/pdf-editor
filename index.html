@@ -1,0 +1,1338 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PDF 조립대</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+    <style>
+      :root {
+        --bg: #f6f8fb;
+        --panel: #ffffff;
+        --ink: #172033;
+        --muted: #62708a;
+        --line: #d8dfeb;
+        --line-strong: #b7c1d1;
+        --teal: #0f766e;
+        --teal-dark: #0d5f59;
+        --orange: #f97316;
+        --rose: #be123c;
+        --blue: #2563eb;
+        --shadow: 0 14px 36px rgba(31, 41, 55, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      button {
+        border: 0;
+      }
+
+      .app-shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: grid;
+        grid-template-columns: minmax(160px, 1fr) auto;
+        align-items: center;
+        gap: 18px;
+        padding: 16px clamp(16px, 3vw, 34px);
+        background: rgba(255, 255, 255, 0.92);
+        border-bottom: 1px solid var(--line);
+        backdrop-filter: blur(16px);
+      }
+
+      h1 {
+        margin: 0;
+        color: var(--ink);
+        font-size: clamp(1.25rem, 2.2vw, 1.7rem);
+        font-weight: 760;
+        letter-spacing: 0;
+      }
+
+      .meta-line {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 3px 9px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fbfdff;
+        white-space: nowrap;
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .button {
+        --button-bg: #eef3f8;
+        --button-fg: var(--ink);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-width: 42px;
+        min-height: 42px;
+        padding: 0 13px;
+        color: var(--button-fg);
+        background: var(--button-bg);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        cursor: pointer;
+        transition:
+          transform 140ms ease,
+          border-color 140ms ease,
+          background 140ms ease,
+          box-shadow 140ms ease;
+      }
+
+      .button:hover:not(:disabled) {
+        transform: translateY(-1px);
+        border-color: var(--line-strong);
+        box-shadow: 0 8px 20px rgba(31, 41, 55, 0.08);
+      }
+
+      .button:disabled {
+        cursor: not-allowed;
+        opacity: 0.46;
+      }
+
+      .button.primary {
+        --button-bg: var(--teal);
+        --button-fg: #ffffff;
+        border-color: var(--teal-dark);
+      }
+
+      .button.save {
+        --button-bg: #172033;
+        --button-fg: #ffffff;
+        border-color: #172033;
+      }
+
+      .button.warn {
+        color: var(--rose);
+      }
+
+      .button svg {
+        width: 19px;
+        height: 19px;
+        stroke-width: 2.2;
+      }
+
+      .button[data-fallback]::before {
+        content: attr(data-fallback);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        font-weight: 760;
+      }
+
+      body.icons-ready .button[data-fallback]::before {
+        display: none;
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(260px, 340px) 1fr;
+        gap: 16px;
+        padding: 16px clamp(16px, 3vw, 34px) 28px;
+      }
+
+      .side-panel,
+      .canvas-panel {
+        min-width: 0;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+      }
+
+      .side-panel {
+        align-self: start;
+        display: grid;
+        gap: 14px;
+        padding: 14px;
+      }
+
+      .drop-zone {
+        display: grid;
+        place-items: center;
+        min-height: 210px;
+        padding: 22px;
+        border: 1.5px dashed var(--line-strong);
+        border-radius: 8px;
+        background: #f9fbfd;
+        text-align: center;
+        cursor: pointer;
+        transition:
+          border-color 140ms ease,
+          background 140ms ease,
+          transform 140ms ease;
+      }
+
+      .drop-zone:hover,
+      .drop-zone.dragover {
+        border-color: var(--teal);
+        background: #eefbf7;
+        transform: translateY(-1px);
+      }
+
+      .drop-icon {
+        display: grid;
+        place-items: center;
+        width: 54px;
+        height: 54px;
+        margin: 0 auto 12px;
+        color: var(--teal);
+        background: #e1f5ef;
+        border-radius: 8px;
+      }
+
+      .drop-icon svg {
+        width: 28px;
+        height: 28px;
+      }
+
+      .drop-title {
+        display: block;
+        color: var(--ink);
+        font-size: 1.02rem;
+        font-weight: 730;
+      }
+
+      .drop-subtitle {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 0.88rem;
+        line-height: 1.45;
+      }
+
+      .field {
+        display: grid;
+        gap: 7px;
+      }
+
+      .field span {
+        color: var(--muted);
+        font-size: 0.82rem;
+        font-weight: 700;
+      }
+
+      .field input {
+        width: 100%;
+        min-height: 42px;
+        padding: 0 12px;
+        color: var(--ink);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfdff;
+        outline: none;
+      }
+
+      .field input:focus {
+        border-color: var(--teal);
+        box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+      }
+
+      .status-box {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfdff;
+      }
+
+      .status {
+        min-height: 22px;
+        color: var(--ink);
+        font-size: 0.92rem;
+        font-weight: 670;
+      }
+
+      .status.warn {
+        color: var(--orange);
+      }
+
+      .status.error {
+        color: var(--rose);
+      }
+
+      .summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 0.86rem;
+      }
+
+      .selection-actions {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .selection-actions .button {
+        min-width: 0;
+        padding: 0;
+      }
+
+      .canvas-panel {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        overflow: hidden;
+      }
+
+      .canvas-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        min-height: 58px;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .canvas-title {
+        margin: 0;
+        color: var(--ink);
+        font-size: 0.98rem;
+        font-weight: 760;
+      }
+
+      .view-tools {
+        display: flex;
+        gap: 8px;
+      }
+
+      .page-grid {
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(172px, 1fr));
+        align-content: start;
+        gap: 12px;
+        min-height: 520px;
+        padding: 14px;
+        background: #eef2f7;
+        overflow: auto;
+      }
+
+      .page-card {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        overflow: hidden;
+        cursor: grab;
+        transition:
+          border-color 130ms ease,
+          box-shadow 130ms ease,
+          transform 130ms ease;
+      }
+
+      .page-card:hover {
+        border-color: var(--line-strong);
+        transform: translateY(-1px);
+      }
+
+      .page-card.selected {
+        border-color: var(--teal);
+        box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.16);
+      }
+
+      .page-card.dragging {
+        opacity: 0.58;
+      }
+
+      .page-card.drop-before {
+        box-shadow: inset 4px 0 0 var(--orange);
+      }
+
+      .page-card.drop-after {
+        box-shadow: inset -4px 0 0 var(--orange);
+      }
+
+      .page-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-height: 38px;
+        padding: 7px 8px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .select-wrap {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+
+      .select-wrap input {
+        width: 17px;
+        height: 17px;
+        margin: 0;
+        accent-color: var(--teal);
+      }
+
+      .page-index {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .mini-actions {
+        display: flex;
+        gap: 4px;
+        flex: 0 0 auto;
+      }
+
+      .mini-actions .button {
+        min-width: 28px;
+        min-height: 28px;
+        padding: 0;
+        border-radius: 7px;
+      }
+
+      .mini-actions .button svg {
+        width: 15px;
+        height: 15px;
+      }
+
+      .preview {
+        display: grid;
+        place-items: center;
+        aspect-ratio: 0.72;
+        min-height: 220px;
+        padding: 12px;
+        background:
+          linear-gradient(45deg, #f4f6fa 25%, transparent 25%),
+          linear-gradient(-45deg, #f4f6fa 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #f4f6fa 75%),
+          linear-gradient(-45deg, transparent 75%, #f4f6fa 75%);
+        background-color: #ffffff;
+        background-position:
+          0 0,
+          0 8px,
+          8px -8px,
+          -8px 0;
+        background-size: 16px 16px;
+      }
+
+      .preview img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        border: 1px solid rgba(98, 112, 138, 0.26);
+        box-shadow: 0 8px 18px rgba(31, 41, 55, 0.13);
+        transform-origin: center;
+        transition: transform 160ms ease;
+      }
+
+      .preview img.sideways {
+        max-width: 72%;
+        max-height: 72%;
+      }
+
+      .page-foot {
+        display: grid;
+        gap: 3px;
+        padding: 8px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.76rem;
+      }
+
+      .file-name,
+      .page-note {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .file-name {
+        color: var(--ink);
+        font-weight: 700;
+      }
+
+      .empty-state {
+        position: absolute;
+        inset: 14px;
+        display: grid;
+        place-items: center;
+        min-height: 360px;
+        padding: 24px;
+        color: var(--muted);
+        border: 1.5px dashed var(--line-strong);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.72);
+        text-align: center;
+        font-weight: 680;
+      }
+
+      .busy-layer {
+        position: fixed;
+        inset: 0;
+        z-index: 30;
+        display: none;
+        place-items: center;
+        background: rgba(246, 248, 251, 0.66);
+        backdrop-filter: blur(4px);
+      }
+
+      .busy-layer.show {
+        display: grid;
+      }
+
+      .busy-card {
+        display: grid;
+        gap: 12px;
+        min-width: min(320px, calc(100vw - 36px));
+        padding: 18px;
+        color: var(--ink);
+        background: #ffffff;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+      }
+
+      .progress {
+        width: 100%;
+        height: 10px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e5eaf2;
+      }
+
+      .progress span {
+        display: block;
+        width: 35%;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--teal);
+        animation: slide 1.1s ease-in-out infinite;
+      }
+
+      @keyframes slide {
+        0% {
+          transform: translateX(-120%);
+        }
+        100% {
+          transform: translateX(320%);
+        }
+      }
+
+      @media (max-width: 960px) {
+        .topbar,
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .toolbar {
+          justify-content: flex-start;
+        }
+
+        .side-panel {
+          align-self: stretch;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .topbar {
+          padding: 13px;
+        }
+
+        .workspace {
+          padding: 12px 12px 20px;
+        }
+
+        .toolbar {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          width: 100%;
+        }
+
+        .toolbar .button {
+          min-width: 0;
+          padding: 0 8px;
+        }
+
+        .toolbar .button.primary,
+        .toolbar .button.save {
+          grid-column: span 2;
+        }
+
+        .button .btn-label {
+          font-size: 0.9rem;
+        }
+
+        .drop-zone {
+          min-height: 160px;
+        }
+
+        .page-grid {
+          grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+          min-height: 430px;
+          padding: 10px;
+        }
+
+        .preview {
+          min-height: 184px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>PDF 조립대</h1>
+          <div class="meta-line">
+            <span class="pill" id="docCount">PDF 0개</span>
+            <span class="pill" id="pageCount">0쪽</span>
+            <span class="pill" id="selectedCount">선택 0쪽</span>
+          </div>
+        </div>
+
+        <nav class="toolbar" aria-label="PDF 작업 도구">
+          <button class="button primary" id="addFiles" type="button" data-fallback="+">
+            <i data-lucide="file-plus-2" aria-hidden="true"></i>
+            <span class="btn-label">PDF 추가</span>
+          </button>
+          <button class="button" id="rotateLeft" type="button" title="선택 페이지 왼쪽 회전" aria-label="선택 페이지 왼쪽 회전" data-fallback="↺">
+            <i data-lucide="rotate-ccw" aria-hidden="true"></i>
+          </button>
+          <button class="button" id="rotateRight" type="button" title="선택 페이지 오른쪽 회전" aria-label="선택 페이지 오른쪽 회전" data-fallback="↻">
+            <i data-lucide="rotate-cw" aria-hidden="true"></i>
+          </button>
+          <button class="button warn" id="removeSelected" type="button" title="선택 페이지 삭제" aria-label="선택 페이지 삭제" data-fallback="×">
+            <i data-lucide="trash-2" aria-hidden="true"></i>
+          </button>
+          <button class="button" id="clearAll" type="button" title="모두 비우기" aria-label="모두 비우기" data-fallback="⟲">
+            <i data-lucide="eraser" aria-hidden="true"></i>
+          </button>
+          <button class="button save" id="savePdf" type="button" data-fallback="↓">
+            <i data-lucide="download" aria-hidden="true"></i>
+            <span class="btn-label">저장</span>
+          </button>
+        </nav>
+      </header>
+
+      <section class="workspace">
+        <aside class="side-panel">
+          <label class="drop-zone" id="dropZone" for="fileInput">
+            <input id="fileInput" type="file" accept="application/pdf,.pdf" multiple hidden />
+            <span>
+              <span class="drop-icon"><i data-lucide="files" aria-hidden="true"></i></span>
+              <span class="drop-title">PDF를 놓기</span>
+              <span class="drop-subtitle">여러 파일을 한 번에 추가</span>
+            </span>
+          </label>
+
+          <label class="field">
+            <span>저장 파일명</span>
+            <input id="fileName" type="text" value="merged.pdf" autocomplete="off" spellcheck="false" />
+          </label>
+
+          <div class="status-box" aria-live="polite">
+            <div class="status" id="status">대기 중</div>
+            <div class="summary">
+              <span id="sourceSummary">원본 0개</span>
+              <span id="pageSummary">페이지 0개</span>
+            </div>
+          </div>
+
+          <div class="selection-actions">
+            <button class="button" id="selectAll" type="button" title="전체 선택" aria-label="전체 선택" data-fallback="✓">
+              <i data-lucide="list-checks" aria-hidden="true"></i>
+            </button>
+            <button class="button" id="selectNone" type="button" title="선택 해제" aria-label="선택 해제" data-fallback="□">
+              <i data-lucide="square" aria-hidden="true"></i>
+            </button>
+            <button class="button" id="moveLeft" type="button" title="선택 페이지 앞으로" aria-label="선택 페이지 앞으로" data-fallback="←">
+              <i data-lucide="arrow-left-to-line" aria-hidden="true"></i>
+            </button>
+            <button class="button" id="moveRight" type="button" title="선택 페이지 뒤로" aria-label="선택 페이지 뒤로" data-fallback="→">
+              <i data-lucide="arrow-right-to-line" aria-hidden="true"></i>
+            </button>
+          </div>
+        </aside>
+
+        <section class="canvas-panel" aria-label="페이지 목록">
+          <div class="canvas-head">
+            <h2 class="canvas-title">페이지</h2>
+            <div class="view-tools">
+              <button class="button" id="sortBySource" type="button" title="원본 순서로 정렬" aria-label="원본 순서로 정렬" data-fallback="≡">
+                <i data-lucide="arrow-down-a-z" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+          <div class="page-grid" id="pageGrid">
+            <div class="empty-state" id="emptyState">PDF를 추가하면 페이지가 표시됩니다.</div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <div class="busy-layer" id="busyLayer" aria-hidden="true">
+      <div class="busy-card">
+        <strong id="busyText">처리 중</strong>
+        <div class="progress" aria-hidden="true"><span></span></div>
+      </div>
+    </div>
+
+    <script>
+      (() => {
+        const pdfjs = window.pdfjsLib;
+        const pdfLib = window.PDFLib;
+        const state = {
+          docs: new Map(),
+          pages: [],
+          selected: new Set(),
+          draggedId: null,
+          dropHint: null,
+          busy: false,
+          nextDocOrder: 0,
+        };
+
+        const els = {
+          addFiles: document.querySelector("#addFiles"),
+          busyLayer: document.querySelector("#busyLayer"),
+          busyText: document.querySelector("#busyText"),
+          clearAll: document.querySelector("#clearAll"),
+          docCount: document.querySelector("#docCount"),
+          dropZone: document.querySelector("#dropZone"),
+          emptyState: document.querySelector("#emptyState"),
+          fileInput: document.querySelector("#fileInput"),
+          fileName: document.querySelector("#fileName"),
+          moveLeft: document.querySelector("#moveLeft"),
+          moveRight: document.querySelector("#moveRight"),
+          pageCount: document.querySelector("#pageCount"),
+          pageGrid: document.querySelector("#pageGrid"),
+          pageSummary: document.querySelector("#pageSummary"),
+          removeSelected: document.querySelector("#removeSelected"),
+          rotateLeft: document.querySelector("#rotateLeft"),
+          rotateRight: document.querySelector("#rotateRight"),
+          savePdf: document.querySelector("#savePdf"),
+          selectAll: document.querySelector("#selectAll"),
+          selectNone: document.querySelector("#selectNone"),
+          selectedCount: document.querySelector("#selectedCount"),
+          sortBySource: document.querySelector("#sortBySource"),
+          sourceSummary: document.querySelector("#sourceSummary"),
+          status: document.querySelector("#status"),
+        };
+
+        if (pdfjs) {
+          pdfjs.GlobalWorkerOptions.workerSrc =
+            "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        }
+
+        function uid(prefix) {
+          if (crypto.randomUUID) {
+            return `${prefix}-${crypto.randomUUID()}`;
+          }
+          return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        }
+
+        function normalizeRotation(value) {
+          return ((value % 360) + 360) % 360;
+        }
+
+        function selectedPages() {
+          return state.pages.filter((page) => state.selected.has(page.id));
+        }
+
+        function setStatus(message, tone = "") {
+          els.status.textContent = message;
+          els.status.className = `status ${tone}`.trim();
+        }
+
+        function setBusy(isBusy, message = "처리 중") {
+          state.busy = isBusy;
+          els.busyText.textContent = message;
+          els.busyLayer.classList.toggle("show", isBusy);
+          els.busyLayer.setAttribute("aria-hidden", String(!isBusy));
+          updateButtons();
+        }
+
+        function updateButtons() {
+          const hasPages = state.pages.length > 0;
+          const hasSelection = state.selected.size > 0;
+          const disabled = state.busy;
+          els.rotateLeft.disabled = disabled || !hasSelection;
+          els.rotateRight.disabled = disabled || !hasSelection;
+          els.removeSelected.disabled = disabled || !hasSelection;
+          els.moveLeft.disabled = disabled || !hasSelection;
+          els.moveRight.disabled = disabled || !hasSelection;
+          els.selectAll.disabled = disabled || !hasPages;
+          els.selectNone.disabled = disabled || !hasSelection;
+          els.clearAll.disabled = disabled || !hasPages;
+          els.sortBySource.disabled = disabled || !hasPages;
+          els.savePdf.disabled = disabled || !hasPages;
+          els.addFiles.disabled = disabled;
+        }
+
+        function updateSummary() {
+          const docTotal = state.docs.size;
+          const pageTotal = state.pages.length;
+          const selectedTotal = state.selected.size;
+          els.docCount.textContent = `PDF ${docTotal}개`;
+          els.pageCount.textContent = `${pageTotal}쪽`;
+          els.selectedCount.textContent = `선택 ${selectedTotal}쪽`;
+          els.sourceSummary.textContent = `원본 ${docTotal}개`;
+          els.pageSummary.textContent = `페이지 ${pageTotal}개`;
+        }
+
+        function refreshIcons() {
+          if (window.lucide) {
+            window.lucide.createIcons();
+            document.body.classList.add("icons-ready");
+          }
+        }
+
+        function cleanSelection() {
+          const pageIds = new Set(state.pages.map((page) => page.id));
+          for (const id of [...state.selected]) {
+            if (!pageIds.has(id)) {
+              state.selected.delete(id);
+            }
+          }
+        }
+
+        function render() {
+          cleanSelection();
+          updateSummary();
+          updateButtons();
+          els.emptyState.hidden = state.pages.length > 0;
+          els.pageGrid.querySelectorAll(".page-card").forEach((node) => node.remove());
+
+          const fragment = document.createDocumentFragment();
+          state.pages.forEach((page, index) => {
+            fragment.appendChild(createPageCard(page, index));
+          });
+          els.pageGrid.appendChild(fragment);
+          refreshIcons();
+        }
+
+        function createIconButton(icon, fallback, title, action, pageId, extraClass = "") {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = `button ${extraClass}`.trim();
+          button.title = title;
+          button.setAttribute("aria-label", title);
+          button.dataset.action = action;
+          button.dataset.pageId = pageId;
+          button.dataset.fallback = fallback;
+
+          const iconNode = document.createElement("i");
+          iconNode.dataset.lucide = icon;
+          iconNode.setAttribute("aria-hidden", "true");
+          button.appendChild(iconNode);
+          return button;
+        }
+
+        function createPageCard(page, index) {
+          const card = document.createElement("article");
+          const selected = state.selected.has(page.id);
+          const sideways = Math.abs(page.rotation % 180) === 90;
+          card.className = `page-card ${selected ? "selected" : ""}`.trim();
+          card.draggable = true;
+          card.dataset.pageId = page.id;
+
+          if (state.draggedId === page.id) {
+            card.classList.add("dragging");
+          }
+
+          if (state.dropHint?.id === page.id) {
+            card.classList.add(state.dropHint.after ? "drop-after" : "drop-before");
+          }
+
+          const top = document.createElement("div");
+          top.className = "page-top";
+
+          const selectLabel = document.createElement("div");
+          selectLabel.className = "select-wrap";
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = selected;
+          checkbox.dataset.action = "toggle-select";
+          checkbox.dataset.pageId = page.id;
+          const indexSpan = document.createElement("span");
+          indexSpan.className = "page-index";
+          indexSpan.textContent = `${index + 1}쪽`;
+          selectLabel.append(checkbox, indexSpan);
+
+          const actions = document.createElement("div");
+          actions.className = "mini-actions";
+          actions.append(
+            createIconButton("rotate-ccw", "↺", "왼쪽 회전", "rotate-left", page.id),
+            createIconButton("rotate-cw", "↻", "오른쪽 회전", "rotate-right", page.id),
+            createIconButton("trash-2", "×", "삭제", "remove", page.id, "warn"),
+          );
+
+          top.append(selectLabel, actions);
+
+          const preview = document.createElement("div");
+          preview.className = "preview";
+          const img = document.createElement("img");
+          img.src = page.thumb;
+          img.alt = `${page.fileName} ${page.pageNumber}쪽`;
+          img.className = sideways ? "sideways" : "";
+          img.style.transform = `rotate(${page.rotation}deg)`;
+          preview.appendChild(img);
+
+          const foot = document.createElement("footer");
+          foot.className = "page-foot";
+          const name = document.createElement("span");
+          name.className = "file-name";
+          name.textContent = page.fileName;
+          const note = document.createElement("span");
+          note.className = "page-note";
+          note.textContent = `원본 ${page.pageNumber}쪽 · 회전 ${page.rotation}°`;
+          foot.append(name, note);
+
+          card.append(top, preview, foot);
+          return card;
+        }
+
+        function sanitizeFileName(name) {
+          const cleaned = name
+            .trim()
+            .replace(/[\\/:*?"<>|]+/g, "-")
+            .replace(/\s+/g, " ");
+          if (!cleaned) {
+            return "merged.pdf";
+          }
+          return cleaned.toLowerCase().endsWith(".pdf") ? cleaned : `${cleaned}.pdf`;
+        }
+
+        async function loadFiles(fileList) {
+          const files = Array.from(fileList).filter(
+            (file) => file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"),
+          );
+
+          if (!files.length) {
+            setStatus("PDF 파일만 추가할 수 있어요.", "warn");
+            return;
+          }
+
+          if (!pdfjs || !pdfLib) {
+            setStatus("PDF 라이브러리를 불러오지 못했어요.", "error");
+            return;
+          }
+
+          setBusy(true, "PDF 불러오는 중");
+          try {
+            for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
+              const file = files[fileIndex];
+              setStatus(`${fileIndex + 1}/${files.length} · ${file.name}`);
+              await loadSinglePdf(file);
+              render();
+            }
+            setStatus(`${files.length}개 PDF 추가 완료`);
+          } catch (error) {
+            console.error(error);
+            setStatus(error.message || "PDF를 불러오지 못했어요.", "error");
+          } finally {
+            setBusy(false);
+            els.fileInput.value = "";
+            render();
+          }
+        }
+
+        async function loadSinglePdf(file) {
+          const docId = uid("doc");
+          const bytes = new Uint8Array(await file.arrayBuffer());
+          const loadingTask = pdfjs.getDocument({
+            data: bytes.slice(),
+            useSystemFonts: true,
+          });
+          const pdf = await loadingTask.promise;
+          const docOrder = state.nextDocOrder;
+          state.nextDocOrder += 1;
+
+          state.docs.set(docId, {
+            id: docId,
+            name: file.name,
+            bytes,
+            pageCount: pdf.numPages,
+            order: docOrder,
+          });
+
+          for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+            setStatus(`${file.name} · ${pageNumber}/${pdf.numPages}`);
+            const page = await pdf.getPage(pageNumber);
+            const thumb = await renderThumbnail(page);
+            const viewport = page.getViewport({ scale: 1 });
+            state.pages.push({
+              id: uid("page"),
+              docId,
+              docOrder,
+              fileName: file.name,
+              pageNumber,
+              sourcePageIndex: pageNumber - 1,
+              sourceWidth: viewport.width,
+              sourceHeight: viewport.height,
+              rotation: 0,
+              thumb,
+            });
+          }
+
+          await pdf.destroy();
+        }
+
+        async function renderThumbnail(page) {
+          const viewport = page.getViewport({ scale: 1 });
+          const targetWidth = 210;
+          const ratio = window.devicePixelRatio || 1;
+          const scale = Math.min(0.7, targetWidth / viewport.width);
+          const scaled = page.getViewport({ scale: scale * ratio });
+          const canvas = document.createElement("canvas");
+          const context = canvas.getContext("2d", { alpha: false });
+          canvas.width = Math.max(1, Math.floor(scaled.width));
+          canvas.height = Math.max(1, Math.floor(scaled.height));
+          context.fillStyle = "#ffffff";
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          await page.render({ canvasContext: context, viewport: scaled }).promise;
+          return canvas.toDataURL("image/jpeg", 0.86);
+        }
+
+        function rotate(ids, delta) {
+          const idSet = new Set(ids);
+          state.pages = state.pages.map((page) =>
+            idSet.has(page.id)
+              ? { ...page, rotation: normalizeRotation(page.rotation + delta) }
+              : page,
+          );
+          setStatus(`${idSet.size}쪽 회전`);
+          render();
+        }
+
+        function removePages(ids) {
+          const idSet = new Set(ids);
+          state.pages = state.pages.filter((page) => !idSet.has(page.id));
+          for (const id of idSet) {
+            state.selected.delete(id);
+          }
+          pruneUnusedDocs();
+          setStatus(`${idSet.size}쪽 삭제`);
+          render();
+        }
+
+        function pruneUnusedDocs() {
+          const activeDocIds = new Set(state.pages.map((page) => page.docId));
+          for (const docId of [...state.docs.keys()]) {
+            if (!activeDocIds.has(docId)) {
+              state.docs.delete(docId);
+            }
+          }
+        }
+
+        function setSelection(ids, mode = "replace") {
+          if (mode === "replace") {
+            state.selected = new Set(ids);
+          } else {
+            for (const id of ids) {
+              if (state.selected.has(id)) {
+                state.selected.delete(id);
+              } else {
+                state.selected.add(id);
+              }
+            }
+          }
+          render();
+        }
+
+        function shiftSelected(direction) {
+          if (!state.selected.size) {
+            return;
+          }
+          const pages = [...state.pages];
+          if (direction < 0) {
+            for (let index = 1; index < pages.length; index += 1) {
+              if (state.selected.has(pages[index].id) && !state.selected.has(pages[index - 1].id)) {
+                [pages[index - 1], pages[index]] = [pages[index], pages[index - 1]];
+              }
+            }
+          } else {
+            for (let index = pages.length - 2; index >= 0; index -= 1) {
+              if (state.selected.has(pages[index].id) && !state.selected.has(pages[index + 1].id)) {
+                [pages[index], pages[index + 1]] = [pages[index + 1], pages[index]];
+              }
+            }
+          }
+          state.pages = pages;
+          setStatus("선택 페이지 이동");
+          render();
+        }
+
+        function reorderPage(draggedId, targetId, after) {
+          if (!draggedId || !targetId || draggedId === targetId) {
+            return;
+          }
+
+          const pages = [...state.pages];
+          const fromIndex = pages.findIndex((page) => page.id === draggedId);
+          const targetIndex = pages.findIndex((page) => page.id === targetId);
+          if (fromIndex < 0 || targetIndex < 0) {
+            return;
+          }
+
+          const [dragged] = pages.splice(fromIndex, 1);
+          const nextTargetIndex = pages.findIndex((page) => page.id === targetId);
+          pages.splice(nextTargetIndex + (after ? 1 : 0), 0, dragged);
+          state.pages = pages;
+          setStatus("페이지 순서 변경");
+          render();
+        }
+
+        function getDropPlacement(event, card) {
+          const rect = card.getBoundingClientRect();
+          const after = event.clientX > rect.left + rect.width / 2;
+          return { id: card.dataset.pageId, after };
+        }
+
+        async function savePdf() {
+          if (!state.pages.length || state.busy) {
+            return;
+          }
+
+          setBusy(true, "PDF 저장 준비 중");
+          try {
+            const out = await pdfLib.PDFDocument.create();
+            const sourceCache = new Map();
+
+            for (let index = 0; index < state.pages.length; index += 1) {
+              const item = state.pages[index];
+              const doc = state.docs.get(item.docId);
+              if (!doc) {
+                continue;
+              }
+
+              if (!sourceCache.has(item.docId)) {
+                sourceCache.set(item.docId, await pdfLib.PDFDocument.load(doc.bytes.slice()));
+              }
+
+              setStatus(`저장 중 · ${index + 1}/${state.pages.length}`);
+              const source = sourceCache.get(item.docId);
+              const [copied] = await out.copyPages(source, [item.sourcePageIndex]);
+              const baseAngle = copied.getRotation().angle || 0;
+              copied.setRotation(pdfLib.degrees(normalizeRotation(baseAngle + item.rotation)));
+              out.addPage(copied);
+            }
+
+            const pdfBytes = await out.save();
+            const blob = new Blob([pdfBytes], { type: "application/pdf" });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.href = url;
+            link.download = sanitizeFileName(els.fileName.value);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+            setStatus(`${state.pages.length}쪽 저장 완료`);
+          } catch (error) {
+            console.error(error);
+            setStatus(error.message || "저장하지 못했어요.", "error");
+          } finally {
+            setBusy(false);
+            render();
+          }
+        }
+
+        function sortBySource() {
+          state.pages.sort((a, b) => {
+            if (a.docOrder !== b.docOrder) {
+              return a.docOrder - b.docOrder;
+            }
+            return a.sourcePageIndex - b.sourcePageIndex;
+          });
+          setStatus("원본 순서 정렬");
+          render();
+        }
+
+        function clearAll() {
+          state.docs.clear();
+          state.pages = [];
+          state.selected.clear();
+          state.nextDocOrder = 0;
+          setStatus("모두 비움");
+          render();
+        }
+
+        els.addFiles.addEventListener("click", () => els.fileInput.click());
+        els.fileInput.addEventListener("change", (event) => loadFiles(event.target.files));
+        els.savePdf.addEventListener("click", savePdf);
+        els.rotateLeft.addEventListener("click", () => rotate([...state.selected], -90));
+        els.rotateRight.addEventListener("click", () => rotate([...state.selected], 90));
+        els.removeSelected.addEventListener("click", () => removePages([...state.selected]));
+        els.clearAll.addEventListener("click", clearAll);
+        els.selectAll.addEventListener("click", () => setSelection(state.pages.map((page) => page.id)));
+        els.selectNone.addEventListener("click", () => setSelection([]));
+        els.moveLeft.addEventListener("click", () => shiftSelected(-1));
+        els.moveRight.addEventListener("click", () => shiftSelected(1));
+        els.sortBySource.addEventListener("click", sortBySource);
+
+        els.dropZone.addEventListener("dragover", (event) => {
+          event.preventDefault();
+          els.dropZone.classList.add("dragover");
+        });
+        els.dropZone.addEventListener("dragleave", () => els.dropZone.classList.remove("dragover"));
+        els.dropZone.addEventListener("drop", (event) => {
+          event.preventDefault();
+          els.dropZone.classList.remove("dragover");
+          loadFiles(event.dataTransfer.files);
+        });
+
+        els.pageGrid.addEventListener("click", (event) => {
+          const actionNode = event.target.closest("[data-action]");
+          const card = event.target.closest(".page-card");
+          if (!card) {
+            return;
+          }
+
+          const pageId = card.dataset.pageId;
+          const action = actionNode?.dataset.action;
+
+          if (action === "rotate-left") {
+            rotate([pageId], -90);
+            return;
+          }
+
+          if (action === "rotate-right") {
+            rotate([pageId], 90);
+            return;
+          }
+
+          if (action === "remove") {
+            removePages([pageId]);
+            return;
+          }
+
+          if (action === "toggle-select") {
+            setSelection([pageId], "toggle");
+            return;
+          }
+
+          if (event.shiftKey && state.selected.size) {
+            const allIds = state.pages.map((page) => page.id);
+            const lastSelectedIndex = Math.max(
+              ...allIds.map((id, index) => (state.selected.has(id) ? index : -1)),
+            );
+            const currentIndex = allIds.indexOf(pageId);
+            const [start, end] = [lastSelectedIndex, currentIndex].sort((a, b) => a - b);
+            setSelection(allIds.slice(start, end + 1));
+            return;
+          }
+
+          setSelection([pageId], "toggle");
+        });
+
+        els.pageGrid.addEventListener("dragstart", (event) => {
+          const card = event.target.closest(".page-card");
+          if (!card) {
+            return;
+          }
+          state.draggedId = card.dataset.pageId;
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", state.draggedId);
+          requestAnimationFrame(render);
+        });
+
+        els.pageGrid.addEventListener("dragover", (event) => {
+          const card = event.target.closest(".page-card");
+          if (!card || !state.draggedId) {
+            return;
+          }
+          event.preventDefault();
+          const placement = getDropPlacement(event, card);
+          if (
+            state.dropHint?.id !== placement.id ||
+            state.dropHint?.after !== placement.after
+          ) {
+            state.dropHint = placement;
+            render();
+          }
+        });
+
+        els.pageGrid.addEventListener("drop", (event) => {
+          const card = event.target.closest(".page-card");
+          if (!card) {
+            return;
+          }
+          event.preventDefault();
+          const draggedId = event.dataTransfer.getData("text/plain") || state.draggedId;
+          const placement = getDropPlacement(event, card);
+          state.draggedId = null;
+          state.dropHint = null;
+          reorderPage(draggedId, placement.id, placement.after);
+        });
+
+        els.pageGrid.addEventListener("dragend", () => {
+          state.draggedId = null;
+          state.dropHint = null;
+          render();
+        });
+
+        window.addEventListener("dragover", (event) => event.preventDefault());
+        window.addEventListener("drop", (event) => {
+          const hasFile = event.dataTransfer?.files?.length;
+          if (hasFile && !event.target.closest("#pageGrid")) {
+            event.preventDefault();
+            loadFiles(event.dataTransfer.files);
+          }
+        });
+
+        refreshIcons();
+        render();
+      })();
+    </script>
+  </body>
+</html>
