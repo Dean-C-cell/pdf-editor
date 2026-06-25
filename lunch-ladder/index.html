@@ -1,0 +1,1297 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>점심값 사다리</title>
+  <style>
+    :root {
+      --bg: #f5f6f2;
+      --surface: #ffffff;
+      --surface-2: #eef3f1;
+      --ink: #20272b;
+      --muted: #667279;
+      --line: #d8ded8;
+      --line-strong: #aab5ae;
+      --teal: #0f8f83;
+      --teal-dark: #0a695f;
+      --coral: #ed684f;
+      --gold: #efb929;
+      --blue: #3769c9;
+      --green: #2d8a50;
+      --danger: #b94336;
+      --shadow: 0 18px 48px rgba(29, 37, 41, 0.10);
+      --radius: 8px;
+      font-family: "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      letter-spacing: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background: var(--bg);
+    }
+
+    button,
+    input {
+      font: inherit;
+      letter-spacing: 0;
+    }
+
+    button {
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--ink);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease, color 120ms ease;
+    }
+
+    button:hover:not(:disabled) {
+      border-color: var(--teal);
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.48;
+      transform: none;
+    }
+
+    input {
+      width: 100%;
+      min-width: 0;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfa;
+      color: var(--ink);
+      outline: none;
+      padding: 0 12px;
+    }
+
+    input:focus {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(15, 143, 131, 0.14);
+    }
+
+    .app {
+      width: min(1480px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 18px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 62px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .state-pill {
+      max-width: 360px;
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(15, 143, 131, 0.25);
+      background: #e7f4f1;
+      color: var(--teal-dark);
+      font-size: 14px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(310px, 380px) minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .setup-column {
+      display: grid;
+      gap: 14px;
+    }
+
+    .panel,
+    .ladder-area {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .panel {
+      padding: 14px;
+    }
+
+    .panel-header,
+    .canvas-header,
+    .result-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .panel-header {
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.2;
+    }
+
+    .count {
+      min-width: 44px;
+      text-align: right;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .entry-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+    }
+
+    .add-button {
+      width: 64px;
+      background: var(--teal);
+      border-color: var(--teal);
+      color: #ffffff;
+      font-weight: 800;
+    }
+
+    .done-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .done-button {
+      flex: 1 1 110px;
+      background: #27313a;
+      border-color: #27313a;
+      color: #ffffff;
+      font-weight: 800;
+    }
+
+    .done-button.is-locked {
+      background: var(--green);
+      border-color: var(--green);
+    }
+
+    .quick-goals {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .quick-goals button {
+      min-height: 34px;
+      padding: 0 10px;
+      font-size: 13px;
+      background: #fff9e6;
+      border-color: #eadca4;
+    }
+
+    .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 7px;
+      min-height: 38px;
+      margin-top: 12px;
+      padding: 8px;
+      border-radius: var(--radius);
+      background: var(--surface-2);
+    }
+
+    .chip {
+      max-width: 100%;
+      min-height: 30px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #ffffff;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .chip button {
+      width: 22px;
+      min-width: 22px;
+      height: 22px;
+      min-height: 22px;
+      padding: 0;
+      border-radius: 999px;
+      color: var(--danger);
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .empty-chip {
+      color: var(--muted);
+      font-size: 13px;
+      min-height: 30px;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .primary-action {
+      grid-column: 1 / -1;
+      min-height: 48px;
+      background: var(--coral);
+      border-color: var(--coral);
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    .secondary-action {
+      font-weight: 800;
+      background: #f8faf9;
+    }
+
+    .reset-action {
+      color: var(--danger);
+      border-color: rgba(185, 67, 54, 0.36);
+      font-weight: 800;
+    }
+
+    .result-list {
+      display: grid;
+      gap: 7px;
+      max-height: 230px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .result-row {
+      min-height: 38px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfa;
+      font-size: 13px;
+    }
+
+    .result-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 800;
+    }
+
+    .result-value {
+      flex: 0 0 auto;
+      max-width: 52%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .result-value.is-hit {
+      color: var(--teal-dark);
+    }
+
+    .result-value.is-blank {
+      color: #8a7052;
+    }
+
+    .ladder-area {
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .canvas-header {
+      min-height: 54px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfa;
+    }
+
+    .canvas-title {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 900;
+    }
+
+    .mode-badge {
+      flex: 0 0 auto;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: #eaf0ff;
+      color: #254b99;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .canvas-scroll {
+      width: 100%;
+      overflow: auto;
+      background: #f9faf6;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 560px;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        padding: 14px;
+      }
+
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .topbar,
+      .canvas-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      .state-pill {
+        width: 100%;
+        max-width: none;
+      }
+
+      .control-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .primary-action {
+        grid-column: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <h1>점심값 사다리</h1>
+      <div class="state-pill" id="statePill">입력 대기</div>
+    </header>
+
+    <main class="layout">
+      <aside class="setup-column">
+        <section class="panel" aria-labelledby="participantTitle">
+          <div class="panel-header">
+            <h2 id="participantTitle">참여자</h2>
+            <div class="count" id="participantCount">0명</div>
+          </div>
+          <div class="entry-row">
+            <input id="participantInput" type="text" autocomplete="off" placeholder="이름 입력">
+            <button class="add-button" id="addParticipantButton" type="button">추가</button>
+          </div>
+          <div class="done-row">
+            <button class="done-button" id="participantDoneButton" type="button">완료</button>
+          </div>
+          <div class="chip-list" id="participantList"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="goalTitle">
+          <div class="panel-header">
+            <h2 id="goalTitle">Goal</h2>
+            <div class="count" id="goalCount">0개</div>
+          </div>
+          <div class="entry-row">
+            <input id="goalInput" type="text" autocomplete="off" placeholder="금액 또는 항목 입력">
+            <button class="add-button" id="addGoalButton" type="button">추가</button>
+          </div>
+          <div class="quick-goals" aria-label="빠른 Goal">
+            <button type="button" data-goal="5000">5,000원</button>
+            <button type="button" data-goal="10000">10,000원</button>
+            <button type="button" data-goal="20000">20,000원</button>
+          </div>
+          <div class="done-row">
+            <button class="done-button" id="goalDoneButton" type="button">완료</button>
+          </div>
+          <div class="chip-list" id="goalList"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="controlTitle">
+          <div class="panel-header">
+            <h2 id="controlTitle">실행</h2>
+          </div>
+          <div class="control-grid">
+            <button class="primary-action" id="startButton" type="button" disabled>사다리 시작</button>
+            <button class="secondary-action" id="newLadderButton" type="button" disabled>새 사다리</button>
+            <button class="reset-action" id="resetButton" type="button">전체 초기화</button>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="resultTitle">
+          <div class="panel-header">
+            <h2 id="resultTitle">결과</h2>
+            <div class="count" id="resultCount">0건</div>
+          </div>
+          <div class="result-list" id="resultList"></div>
+        </section>
+      </aside>
+
+      <section class="ladder-area" aria-labelledby="canvasTitle">
+        <div class="canvas-header">
+          <div class="canvas-title" id="canvasTitle">사다리</div>
+          <div class="mode-badge" id="modeBadge">대기</div>
+        </div>
+        <div class="canvas-scroll" id="canvasScroll">
+          <canvas id="ladderCanvas" height="560"></canvas>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const els = {
+      statePill: document.getElementById("statePill"),
+      participantInput: document.getElementById("participantInput"),
+      addParticipantButton: document.getElementById("addParticipantButton"),
+      participantDoneButton: document.getElementById("participantDoneButton"),
+      participantList: document.getElementById("participantList"),
+      participantCount: document.getElementById("participantCount"),
+      goalInput: document.getElementById("goalInput"),
+      addGoalButton: document.getElementById("addGoalButton"),
+      goalDoneButton: document.getElementById("goalDoneButton"),
+      goalList: document.getElementById("goalList"),
+      goalCount: document.getElementById("goalCount"),
+      startButton: document.getElementById("startButton"),
+      newLadderButton: document.getElementById("newLadderButton"),
+      resetButton: document.getElementById("resetButton"),
+      resultList: document.getElementById("resultList"),
+      resultCount: document.getElementById("resultCount"),
+      modeBadge: document.getElementById("modeBadge"),
+      canvasScroll: document.getElementById("canvasScroll"),
+      canvas: document.getElementById("ladderCanvas")
+    };
+
+    const ctx = els.canvas.getContext("2d");
+    const blankGoalLabel = "빈 칸";
+    const pathColors = [
+      "#0f8f83",
+      "#ed684f",
+      "#3769c9",
+      "#b66a00",
+      "#7a5cc9",
+      "#2d8a50",
+      "#c23d78",
+      "#57717a"
+    ];
+
+    const state = {
+      participants: [],
+      goals: [],
+      participantsLocked: false,
+      goalsLocked: false,
+      ladder: null,
+      goalSlots: [],
+      revealed: new Set(),
+      results: [],
+      history: [],
+      active: null,
+      running: false,
+      complete: false,
+      status: "입력 대기",
+      canvasWidth: 900,
+      canvasHeight: 560
+    };
+
+    function cleanText(value) {
+      return value.trim().replace(/\s+/g, " ");
+    }
+
+    function normalizeGoal(value) {
+      const text = cleanText(value);
+      const money = text.match(/^([0-9][0-9,\s]*)원?$/);
+      if (!money) return text;
+
+      const amount = Number(money[1].replace(/[,\s]/g, ""));
+      if (!Number.isFinite(amount)) return text;
+      return amount.toLocaleString("ko-KR") + "원";
+    }
+
+    function setStatus(text) {
+      state.status = text;
+      els.statePill.textContent = text;
+    }
+
+    function invalidateLadder() {
+      state.ladder = null;
+      state.goalSlots = [];
+      state.revealed = new Set();
+      state.results = [];
+      state.history = [];
+      state.active = null;
+      state.complete = false;
+      renderResults();
+      updateButtons();
+      draw();
+    }
+
+    function addParticipant() {
+      if (state.running || state.participantsLocked) return;
+      const value = cleanText(els.participantInput.value);
+      if (!value) return;
+      state.participants.push(value);
+      els.participantInput.value = "";
+      invalidateLadder();
+      renderParticipants();
+      setStatus("참여자 입력 중");
+    }
+
+    function addGoal(value) {
+      if (state.running || state.goalsLocked) return;
+      const source = value ?? els.goalInput.value;
+      const goal = normalizeGoal(source);
+      if (!goal) return;
+      state.goals.push(goal);
+      els.goalInput.value = "";
+      invalidateLadder();
+      renderGoals();
+      setStatus("Goal 입력 중");
+    }
+
+    function toggleParticipantsDone() {
+      if (state.running) return;
+      if (!state.participantsLocked && state.participants.length === 0) {
+        setStatus("참여자를 입력하세요");
+        return;
+      }
+      state.participantsLocked = !state.participantsLocked;
+      invalidateLadder();
+      renderParticipants();
+      updateDoneButtons();
+      updateReadyStatus();
+    }
+
+    function toggleGoalsDone() {
+      if (state.running) return;
+      if (!state.goalsLocked && state.goals.length === 0) {
+        setStatus("Goal을 입력하세요");
+        return;
+      }
+      state.goalsLocked = !state.goalsLocked;
+      invalidateLadder();
+      renderGoals();
+      updateDoneButtons();
+      updateReadyStatus();
+    }
+
+    function updateReadyStatus() {
+      if (state.participantsLocked && state.goalsLocked) {
+        setStatus("시작 준비 완료");
+      } else if (state.participantsLocked) {
+        setStatus("Goal 입력 대기");
+      } else if (state.goalsLocked) {
+        setStatus("참여자 입력 대기");
+      } else {
+        setStatus("입력 대기");
+      }
+    }
+
+    function renderParticipants() {
+      els.participantCount.textContent = state.participants.length + "명";
+      renderChipList(els.participantList, state.participants, state.participantsLocked, removeParticipant);
+    }
+
+    function renderGoals() {
+      els.goalCount.textContent = state.goals.length + "개";
+      renderChipList(els.goalList, state.goals, state.goalsLocked, removeGoal);
+      renderMode();
+    }
+
+    function renderChipList(container, values, locked, removeHandler) {
+      container.replaceChildren();
+      if (values.length === 0) {
+        const empty = document.createElement("span");
+        empty.className = "empty-chip";
+        empty.textContent = "비어 있음";
+        container.appendChild(empty);
+        return;
+      }
+
+      values.forEach((value, index) => {
+        const chip = document.createElement("span");
+        chip.className = "chip";
+        const label = document.createElement("span");
+        label.textContent = value;
+        chip.appendChild(label);
+
+        if (!locked) {
+          const removeButton = document.createElement("button");
+          removeButton.type = "button";
+          removeButton.textContent = "x";
+          removeButton.setAttribute("aria-label", value + " 삭제");
+          removeButton.addEventListener("click", () => removeHandler(index));
+          chip.appendChild(removeButton);
+        }
+
+        container.appendChild(chip);
+      });
+    }
+
+    function removeParticipant(index) {
+      if (state.running || state.participantsLocked) return;
+      state.participants.splice(index, 1);
+      invalidateLadder();
+      renderParticipants();
+      updateReadyStatus();
+    }
+
+    function removeGoal(index) {
+      if (state.running || state.goalsLocked) return;
+      state.goals.splice(index, 1);
+      invalidateLadder();
+      renderGoals();
+      updateReadyStatus();
+    }
+
+    function updateDoneButtons() {
+      els.participantDoneButton.textContent = state.participantsLocked ? "수정" : "완료";
+      els.goalDoneButton.textContent = state.goalsLocked ? "수정" : "완료";
+      els.participantDoneButton.classList.toggle("is-locked", state.participantsLocked);
+      els.goalDoneButton.classList.toggle("is-locked", state.goalsLocked);
+
+      els.participantInput.disabled = state.participantsLocked || state.running;
+      els.addParticipantButton.disabled = state.participantsLocked || state.running;
+      els.goalInput.disabled = state.goalsLocked || state.running;
+      els.addGoalButton.disabled = state.goalsLocked || state.running;
+      els.participantDoneButton.disabled = state.running;
+      els.goalDoneButton.disabled = state.running;
+
+      document.querySelectorAll("[data-goal]").forEach((button) => {
+        button.disabled = state.goalsLocked || state.running;
+      });
+    }
+
+    function canPrepare() {
+      return state.participantsLocked && state.goalsLocked && state.participants.length > 0 && state.goals.length > 0;
+    }
+
+    function updateButtons() {
+      const ready = canPrepare();
+      els.startButton.disabled = !ready || state.running;
+      els.newLadderButton.disabled = !ready || state.running;
+      els.resetButton.disabled = state.running;
+      els.startButton.textContent = state.running ? "진행 중" : state.complete ? "다시 시작" : "사다리 시작";
+      renderMode();
+    }
+
+    function renderMode() {
+      if (state.goals.length === 0) {
+        els.modeBadge.textContent = "대기";
+      } else if (state.goals.length === 1) {
+        els.modeBadge.textContent = "한 개 Goal";
+      } else {
+        els.modeBadge.textContent = state.goals.length + "개 Goal";
+      }
+    }
+
+    function shuffle(values) {
+      const result = [...values];
+      for (let i = result.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+      }
+      return result;
+    }
+
+    function buildLadder() {
+      const columns = Math.max(state.participants.length, state.goals.length, 1);
+      const rows = columns <= 1 ? 0 : Math.max(8, Math.min(18, Math.ceil(columns * 1.15) + 5));
+      const links = Array.from({ length: rows }, () => Array(Math.max(0, columns - 1)).fill(false));
+
+      if (columns > 1) {
+        for (let row = 0; row < rows; row += 1) {
+          for (let col = 0; col < columns - 1; col += 1) {
+            const previous = col > 0 && links[row][col - 1];
+            const probability = columns <= 4 ? 0.42 : 0.30;
+            if (!previous && Math.random() < probability) {
+              links[row][col] = true;
+              col += 1;
+            }
+          }
+        }
+
+        for (let col = 0; col < columns - 1; col += 1) {
+          const hasLink = links.some((row) => row[col]);
+          if (hasLink) continue;
+
+          const candidates = [];
+          for (let row = 0; row < rows; row += 1) {
+            const leftClear = col === 0 || !links[row][col - 1];
+            const rightClear = col === columns - 2 || !links[row][col + 1];
+            if (leftClear && rightClear) candidates.push(row);
+          }
+
+          if (candidates.length > 0) {
+            const row = candidates[Math.floor(Math.random() * candidates.length)];
+            links[row][col] = true;
+          }
+        }
+      }
+
+      state.ladder = { columns, rows, links };
+      state.goalSlots = makeGoalSlots(columns);
+      state.revealed = new Set();
+      state.results = [];
+      state.history = [];
+      state.active = null;
+      state.complete = false;
+      renderResults();
+      draw();
+    }
+
+    function makeGoalSlots(columns) {
+      const slots = Array(columns).fill("");
+
+      if (state.goals.length === 1) {
+        const winningSlot = Math.floor(Math.random() * columns);
+        slots[winningSlot] = state.goals[0];
+        return slots;
+      }
+
+      shuffle(state.goals).forEach((goal, index) => {
+        slots[index] = goal;
+      });
+
+      return slots;
+    }
+
+    function getMetrics() {
+      const columns = state.ladder ? state.ladder.columns : Math.max(state.participants.length, state.goals.length, 1);
+      const left = columns <= 1 ? state.canvasWidth / 2 : 72;
+      const right = columns <= 1 ? state.canvasWidth / 2 : state.canvasWidth - 72;
+      const topY = 112;
+      const bottomY = 420;
+      const labelTopY = 54;
+      const labelBottomY = 494;
+      const rowYs = [];
+      const rows = state.ladder ? state.ladder.rows : 0;
+
+      for (let row = 0; row < rows; row += 1) {
+        rowYs.push(topY + ((row + 1) / (rows + 1)) * (bottomY - topY));
+      }
+
+      return {
+        columns,
+        left,
+        right,
+        topY,
+        bottomY,
+        labelTopY,
+        labelBottomY,
+        rowYs,
+        xFor(column) {
+          if (columns <= 1) return state.canvasWidth / 2;
+          return left + ((right - left) / (columns - 1)) * column;
+        },
+        slotWidth() {
+          if (columns <= 1) return 170;
+          const gap = (right - left) / (columns - 1);
+          return Math.max(74, Math.min(138, gap - 16));
+        }
+      };
+    }
+
+    function tracePath(startColumn) {
+      const metrics = getMetrics();
+      const points = [];
+      let column = startColumn;
+      points.push({ x: metrics.xFor(column), y: metrics.topY });
+
+      for (let row = 0; row < state.ladder.rows; row += 1) {
+        const y = metrics.rowYs[row];
+        points.push({ x: metrics.xFor(column), y });
+
+        if (state.ladder.links[row][column]) {
+          column += 1;
+          points.push({ x: metrics.xFor(column), y });
+        } else if (column > 0 && state.ladder.links[row][column - 1]) {
+          column -= 1;
+          points.push({ x: metrics.xFor(column), y });
+        }
+      }
+
+      points.push({ x: metrics.xFor(column), y: metrics.bottomY });
+      return { points, finalColumn: column };
+    }
+
+    function pathLength(points) {
+      let total = 0;
+      for (let index = 1; index < points.length; index += 1) {
+        total += Math.hypot(points[index].x - points[index - 1].x, points[index].y - points[index - 1].y);
+      }
+      return total;
+    }
+
+    function pointAtProgress(points, progress) {
+      const total = pathLength(points);
+      const target = total * progress;
+      let traveled = 0;
+
+      for (let index = 1; index < points.length; index += 1) {
+        const start = points[index - 1];
+        const end = points[index];
+        const segment = Math.hypot(end.x - start.x, end.y - start.y);
+        if (traveled + segment >= target) {
+          const t = segment === 0 ? 0 : (target - traveled) / segment;
+          return {
+            x: start.x + (end.x - start.x) * t,
+            y: start.y + (end.y - start.y) * t
+          };
+        }
+        traveled += segment;
+      }
+
+      return points[points.length - 1];
+    }
+
+    function runAnimation(active, duration) {
+      return new Promise((resolve) => {
+        const startedAt = performance.now();
+
+        function frame(now) {
+          const linear = Math.min(1, (now - startedAt) / duration);
+          active.progress = 1 - Math.pow(1 - linear, 3);
+          draw();
+          if (linear < 1) {
+            requestAnimationFrame(frame);
+          } else {
+            active.progress = 1;
+            draw();
+            resolve();
+          }
+        }
+
+        requestAnimationFrame(frame);
+      });
+    }
+
+    async function runLadder() {
+      if (!canPrepare() || state.running) return;
+
+      buildLadder();
+      state.running = true;
+      state.complete = false;
+      setStatus("사다리 진행 중");
+      updateButtons();
+      updateDoneButtons();
+
+      let stoppedBySingleGoal = false;
+
+      for (let index = 0; index < state.participants.length; index += 1) {
+        const traced = tracePath(index);
+        const color = pathColors[index % pathColors.length];
+        const active = {
+          points: traced.points,
+          color,
+          progress: 0,
+          participantIndex: index,
+          finalColumn: traced.finalColumn
+        };
+
+        state.active = active;
+        setStatus(state.participants[index] + " 진행 중");
+        await runAnimation(active, Math.max(1050, Math.min(2200, pathLength(traced.points) * 2.1)));
+
+        const goal = state.goalSlots[traced.finalColumn] || "";
+        state.revealed.add(traced.finalColumn);
+        state.results[index] = {
+          participant: state.participants[index],
+          goal: goal || blankGoalLabel,
+          hit: Boolean(goal),
+          color,
+          column: traced.finalColumn
+        };
+        state.history.push(active);
+        state.active = null;
+        renderResults();
+        draw();
+
+        if (state.goals.length === 1 && goal) {
+          stoppedBySingleGoal = true;
+          setStatus(state.participants[index] + " 결과 오픈");
+          break;
+        }
+
+        await wait(520);
+      }
+
+      state.running = false;
+      state.complete = true;
+      if (stoppedBySingleGoal) {
+        setStatus("Goal 확인 완료");
+      } else {
+        for (let column = 0; column < state.ladder.columns; column += 1) {
+          state.revealed.add(column);
+        }
+        setStatus("모든 참여자 완료");
+      }
+
+      renderResults();
+      updateButtons();
+      updateDoneButtons();
+      draw();
+    }
+
+    function wait(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function renderResults() {
+      els.resultList.replaceChildren();
+      const completed = state.results.filter(Boolean).length;
+      els.resultCount.textContent = completed + "건";
+
+      if (state.participants.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "result-row";
+        empty.innerHTML = '<span class="result-name">대기</span><span class="result-value">0건</span>';
+        els.resultList.appendChild(empty);
+        return;
+      }
+
+      state.participants.forEach((participant, index) => {
+        const row = document.createElement("div");
+        row.className = "result-row";
+
+        const name = document.createElement("span");
+        name.className = "result-name";
+        name.textContent = participant;
+
+        const value = document.createElement("span");
+        const result = state.results[index];
+        value.className = "result-value";
+        if (result) {
+          value.textContent = result.goal;
+          value.classList.toggle("is-hit", result.hit);
+          value.classList.toggle("is-blank", !result.hit);
+        } else {
+          value.textContent = state.complete ? "미진행" : "대기";
+        }
+
+        row.append(name, value);
+        els.resultList.appendChild(row);
+      });
+    }
+
+    function prepareNewLadder() {
+      if (!canPrepare() || state.running) return;
+      buildLadder();
+      setStatus("새 사다리 준비 완료");
+      updateButtons();
+    }
+
+    function resetAll() {
+      if (state.running) return;
+      state.participants = [];
+      state.goals = [];
+      state.participantsLocked = false;
+      state.goalsLocked = false;
+      els.participantInput.value = "";
+      els.goalInput.value = "";
+      invalidateLadder();
+      renderParticipants();
+      renderGoals();
+      updateDoneButtons();
+      setStatus("입력 대기");
+    }
+
+    function syncCanvasSize() {
+      const baseColumns = state.ladder ? state.ladder.columns : Math.max(state.participants.length, state.goals.length, 3);
+      const slotSize = baseColumns > 18 ? 92 : 112;
+      const cssWidth = Math.max(els.canvasScroll.clientWidth, baseColumns * slotSize + 144);
+      const cssHeight = 560;
+      const dpr = window.devicePixelRatio || 1;
+
+      state.canvasWidth = cssWidth;
+      state.canvasHeight = cssHeight;
+      els.canvas.style.width = cssWidth + "px";
+      els.canvas.style.height = cssHeight + "px";
+
+      const width = Math.round(cssWidth * dpr);
+      const height = Math.round(cssHeight * dpr);
+      if (els.canvas.width !== width || els.canvas.height !== height) {
+        els.canvas.width = width;
+        els.canvas.height = height;
+      }
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function draw() {
+      syncCanvasSize();
+      ctx.clearRect(0, 0, state.canvasWidth, state.canvasHeight);
+      ctx.fillStyle = "#f9faf6";
+      ctx.fillRect(0, 0, state.canvasWidth, state.canvasHeight);
+
+      if (!state.ladder) {
+        drawEmptyCanvas();
+        return;
+      }
+
+      const metrics = getMetrics();
+      drawLadderBase(metrics);
+      state.history.forEach((path) => drawPath(path.points, path.color, 1, 6, 0.58));
+
+      if (state.active) {
+        drawPath(state.active.points, state.active.color, state.active.progress, 8, 0.98);
+        const point = pointAtProgress(state.active.points, state.active.progress);
+        ctx.beginPath();
+        ctx.fillStyle = state.active.color;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 3;
+        ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      drawLabels(metrics);
+    }
+
+    function drawEmptyCanvas() {
+      ctx.save();
+      ctx.fillStyle = "#e9eeea";
+      ctx.strokeStyle = "#d8ded8";
+      ctx.lineWidth = 2;
+      const width = Math.min(420, state.canvasWidth - 48);
+      const height = 92;
+      const x = (state.canvasWidth - width) / 2;
+      const y = (state.canvasHeight - height) / 2;
+      roundRect(ctx, x, y, width, height, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#667279";
+      ctx.font = "800 18px Segoe UI, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(state.status, state.canvasWidth / 2, state.canvasHeight / 2);
+      ctx.restore();
+    }
+
+    function drawLadderBase(metrics) {
+      ctx.save();
+      ctx.lineCap = "round";
+
+      ctx.strokeStyle = "#aab5ae";
+      ctx.lineWidth = 4;
+      for (let column = 0; column < metrics.columns; column += 1) {
+        const x = metrics.xFor(column);
+        ctx.beginPath();
+        ctx.moveTo(x, metrics.topY);
+        ctx.lineTo(x, metrics.bottomY);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = "#68747a";
+      ctx.lineWidth = 5;
+      for (let row = 0; row < state.ladder.rows; row += 1) {
+        const y = metrics.rowYs[row];
+        for (let column = 0; column < metrics.columns - 1; column += 1) {
+          if (!state.ladder.links[row][column]) continue;
+          ctx.beginPath();
+          ctx.moveTo(metrics.xFor(column), y);
+          ctx.lineTo(metrics.xFor(column + 1), y);
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function drawLabels(metrics) {
+      const boxWidth = metrics.slotWidth();
+      for (let column = 0; column < metrics.columns; column += 1) {
+        const participant = state.participants[column] || "";
+        if (participant) {
+          drawBoxLabel({
+            x: metrics.xFor(column),
+            y: metrics.labelTopY,
+            width: boxWidth,
+            text: participant,
+            fill: "#ffffff",
+            stroke: "#d8ded8",
+            color: "#20272b"
+          });
+        }
+
+        const isOpen = state.revealed.has(column);
+        const goal = state.goalSlots[column] || "";
+        const label = isOpen ? goal || blankGoalLabel : "?";
+        const fill = !isOpen ? "#27313a" : goal ? "#fff4c8" : "#edf1ed";
+        const stroke = !isOpen ? "#27313a" : goal ? "#efb929" : "#d8ded8";
+        const color = !isOpen ? "#ffffff" : goal ? "#4c3500" : "#667279";
+        drawBoxLabel({
+          x: metrics.xFor(column),
+          y: metrics.labelBottomY,
+          width: boxWidth,
+          text: label,
+          fill,
+          stroke,
+          color
+        });
+      }
+    }
+
+    function drawBoxLabel(options) {
+      const height = 44;
+      const x = options.x - options.width / 2;
+      const y = options.y - height / 2;
+
+      ctx.save();
+      roundRect(ctx, x, y, options.width, height, 8);
+      ctx.fillStyle = options.fill;
+      ctx.strokeStyle = options.stroke;
+      ctx.lineWidth = 2;
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = options.color;
+      ctx.font = "800 14px Segoe UI, Apple SD Gothic Neo, Malgun Gothic, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(fitText(options.text, options.width - 14), options.x, options.y);
+      ctx.restore();
+    }
+
+    function fitText(text, maxWidth) {
+      if (ctx.measureText(text).width <= maxWidth) return text;
+      let result = text;
+      while (result.length > 1 && ctx.measureText(result + "...").width > maxWidth) {
+        result = result.slice(0, -1);
+      }
+      return result + "...";
+    }
+
+    function drawPath(points, color, progress, width, alpha) {
+      const total = pathLength(points);
+      const target = total * progress;
+      let traveled = 0;
+
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = width;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+
+      for (let index = 1; index < points.length; index += 1) {
+        const start = points[index - 1];
+        const end = points[index];
+        const segment = Math.hypot(end.x - start.x, end.y - start.y);
+
+        if (traveled + segment <= target) {
+          ctx.lineTo(end.x, end.y);
+          traveled += segment;
+          continue;
+        }
+
+        const remaining = Math.max(0, target - traveled);
+        const t = segment === 0 ? 0 : remaining / segment;
+        ctx.lineTo(start.x + (end.x - start.x) * t, start.y + (end.y - start.y) * t);
+        break;
+      }
+
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function roundRect(context, x, y, width, height, radius) {
+      const r = Math.min(radius, width / 2, height / 2);
+      context.beginPath();
+      context.moveTo(x + r, y);
+      context.arcTo(x + width, y, x + width, y + height, r);
+      context.arcTo(x + width, y + height, x, y + height, r);
+      context.arcTo(x, y + height, x, y, r);
+      context.arcTo(x, y, x + width, y, r);
+      context.closePath();
+    }
+
+    els.addParticipantButton.addEventListener("click", addParticipant);
+    els.participantInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") addParticipant();
+    });
+    els.participantDoneButton.addEventListener("click", toggleParticipantsDone);
+
+    els.addGoalButton.addEventListener("click", () => addGoal());
+    els.goalInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") addGoal();
+    });
+    els.goalDoneButton.addEventListener("click", toggleGoalsDone);
+
+    document.querySelectorAll("[data-goal]").forEach((button) => {
+      button.addEventListener("click", () => addGoal(button.dataset.goal));
+    });
+
+    els.startButton.addEventListener("click", runLadder);
+    els.newLadderButton.addEventListener("click", prepareNewLadder);
+    els.resetButton.addEventListener("click", resetAll);
+    window.addEventListener("resize", draw);
+
+    renderParticipants();
+    renderGoals();
+    renderResults();
+    updateDoneButtons();
+    updateButtons();
+    draw();
+  </script>
+</body>
+</html>
